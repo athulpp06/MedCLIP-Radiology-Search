@@ -1,7 +1,6 @@
 # Virtual environment
 venv/
 .venv/
-env/
 
 # Python caching
 __pycache__/
@@ -10,8 +9,6 @@ __pycache__/
 # Heavy ML Artifacts (DO NOT PUSH TO GITHUB)
 *.pth
 *.bin
-*.h5
 
 # Local Dataset storage
 data/
-ROCO-Radiology/
