@@ -3,9 +3,10 @@
 torch
 torchvision
 torchaudio
-transformers
+transformers==4.45.2
 pandas
 pillow
 streamlit
 faiss-cpu
 tqdm
+safetensors

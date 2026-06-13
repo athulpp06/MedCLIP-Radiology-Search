@@ -63,7 +63,7 @@ if query_text:
         ).to(device)
         
         with torch.no_grad():
-            text_features = model.text_encoder(input_ids=tokens['input_ids'], attention_mask=tokens['attention_mask'])
+            text_features = model.text_model(input_ids=tokens['input_ids'], attention_mask=tokens['attention_mask'])
             # Match pooler mechanism strategy defined inside model.py
             text_features = text_outputs = text_features.pooler_output if hasattr(text_features, 'pooler_output') else text_features.last_hidden_state[:, 0, :]
             text_embeddings = model.text_projection(text_features)
