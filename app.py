@@ -2,101 +2,98 @@ import streamlit as st
 import torch
 import pandas as pd
 import faiss
-import os
+import numpy as np
 from PIL import Image
+import os
 
 # Import your custom architecture blueprint
 from src.model import MedCLIPModel
 
-# Page configuration layout properties
-st.set_page_config(page_title="Med-CLIP Explorer", page_icon="🩻", layout="wide")
+# 1. Configure the Web Interface
+st.set_page_config(page_title="MedCLIP Search", layout="wide")
+st.title("🔍 MedCLIP Semantic Search Engine")
+st.markdown("Search through thousands of radiology images using natural language clinical descriptions.")
 
+# 2. Load the AI and Database (Cached so it only happens once)
 @st.cache_resource
 def load_search_engine():
-    """Loads and caches runtime structures to prevent reloads on user actions"""
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    # Load model and inject weights
+    # Initialize Architecture and Weights
     model = MedCLIPModel(emb_dim=512)
-    model.load_state_dict(torch.load("medclip_v1_weights.pth", map_location=device))
+    model.load_state_dict(torch.load("medclip_v1_weights.pth", map_location=device, weights_only=True))
     model.to(device)
     model.eval()
     
-    # Load database matrices
+    # Load the FAISS Vector Index and Metadata
     index = faiss.read_index("vector_index.faiss")
-    metadata = pd.read_csv("metadata.csv")
+    df = pd.read_csv("metadata.csv")
     
-    return model, index, metadata, device
+    return model, index, df, device
 
-# Header UI Elements
-st.title("🩻 Med-CLIP: Medical Image Semantic Search Engine")
-st.markdown("Query an offline database of chest radiographs using free-text natural language descriptions.")
-st.markdown("---")
+with st.spinner("Loading AI model and vector database into GPU memory..."):
+    try:
+        model, index, df, device = load_search_engine()
+    except Exception as e:
+        st.error(f"❌ Failed to load systems. Check your file paths! Error: {e}")
+        st.stop()
 
-# Setup error checkpointing interface
-try:
-    model, index, metadata, device = load_search_engine()
-    st.sidebar.success(f"⚙️ Running Engine on: {str(device).upper()}")
-    st.sidebar.info(f"📚 Total Images Searchable: {len(metadata)}")
-except Exception as e:
-    st.sidebar.error("❌ Dependencies Missing")
-    st.warning("Before launching: You must generate your index files by running: `python build_index.py`")
-    st.stop()
+# 3. The Search Bar
+query = st.text_input("Enter a clinical feature to search for (e.g., 'pleural effusion', 'axial MRI', 'cardiomegaly'):", "")
 
-# Layout Design: Input controls
-query_text = st.text_input(
-    "Enter clinical observations or suspected pathologies:", 
-    placeholder="e.g., pleural effusion in left lung field or normal chest radiograph without abnormalities"
-)
-
-top_k = st.sidebar.slider("Maximum matches to return:", min_value=1, max_value=9, value=3, step=1)
-
-if query_text:
-    with st.spinner("Traversing latent vector alignment space..."):
-        # 1. Encode text string to structural embedding
-        tokens = model.tokenizer(
-            [query_text], 
-            padding=True, 
-            truncation=True, 
-            max_length=128, 
-            return_tensors="pt"
-        ).to(device)
-        
+# 4. The Inference Pipeline
+if query:
+    with st.spinner("Embedding query and scanning database..."):
         with torch.no_grad():
-            text_features = model.text_model(input_ids=tokens['input_ids'], attention_mask=tokens['attention_mask'])
-            # Match pooler mechanism strategy defined inside model.py
-            text_features = text_outputs = text_features.pooler_output if hasattr(text_features, 'pooler_output') else text_features.last_hidden_state[:, 0, :]
+            # Convert text into machine tokens
+            tokens = model.tokenizer(
+                [query], 
+                padding=True, 
+                truncation=True, 
+                max_length=77, 
+                return_tensors="pt"
+            ).to(device)
+            
+            # Push tokens through the Text Model (This matches our src/model.py fix!)
+            text_outputs = model.text_model(input_ids=tokens['input_ids'], attention_mask=tokens['attention_mask'])
+            
+            # Extract the raw features
+            if hasattr(text_outputs, 'pooler_output'):
+                text_features = text_outputs.pooler_output
+            else:
+                text_features = text_outputs.last_hidden_state[:, 0, :]
+            
+            # Project to the shared 512-dimensional space and normalize
             text_embeddings = model.text_projection(text_features)
             text_embeddings = text_embeddings / text_embeddings.norm(dim=-1, keepdim=True)
-            text_query_vector = text_embeddings.cpu().numpy().astype('float32')
-            
-        # 2. Run instant vector search computation
-        scores, indices = index.search(text_query_vector, top_k)
+            text_vector = text_embeddings.cpu().numpy().astype('float32')
         
-        # 3. Render Visual Grid Results
-        st.subheader(f"Top {top_k} Most Similar Clinical Instances")
-        columns_grid = st.columns(3)
+        # 5. Search the FAISS Index
+        k = 6 # Number of images to return
+        distances, indices = index.search(text_vector, k)
         
-        for grid_idx, (score, match_row_idx) in enumerate(zip(scores[0], indices[0])):
-            if match_row_idx < 0 or match_row_idx >= len(metadata):
-                continue
-                
-            record = metadata.iloc[match_row_idx]
-            local_img_path = record['image_path']
-            ground_truth_text = record['caption']
+        # 6. Render the Results
+        st.divider()
+        st.subheader(f"Top {k} highest-matching scans for: *'{query}'*")
+        
+        # Create a clean 3-column grid layout
+        cols = st.columns(3)
+        for i in range(k):
+            idx = indices[0][i]
+            score = distances[0][i]
+            row = df.iloc[idx]
             
-            # Balance display across 3 rows iteratively
-            column_target = columns_grid[grid_idx % 3]
+            img_path = row['image_path']
+            original_caption = row['caption']
             
-            with column_target:
-                st.markdown(f"**Match Relevance Rank #{grid_idx + 1}**")
-                st.caption(f"Cosine Proximity Score: `{score:.4f}`")
-                
-                if os.path.exists(local_img_path):
-                    loaded_img = Image.open(local_img_path)
-                    st.image(loaded_img, use_container_width=True)
-                else:
-                    st.error(f"Image asset file missing at path: {local_img_path}")
-                
-                with st.expander("View Original Clinical Caption"):
-                    st.write(ground_truth_text)
+            with cols[i % 3]:
+                try:
+                    img = Image.open(img_path)
+                    st.image(img, use_container_width=True)
+                    # Display the FAISS cosine similarity score
+                    st.caption(f"**Cosine Similarity:** {score:.4f}")
+                    # Hide the original caption inside a dropdown to keep the UI clean
+                    with st.expander("View Original Dataset Caption"):
+                        st.write(original_caption)
+                except FileNotFoundError:
+                    st.error(f"Image missing at: {img_path}")
