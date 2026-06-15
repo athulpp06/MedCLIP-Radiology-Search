@@ -1,80 +1,121 @@
-🔍 MedCLIP Radiology Semantic Search
+# 🔍 MedCLIP Radiology Semantic Search
+
 A cross-modal, text-to-image semantic search engine capable of retrieving complex, unstructured radiology scans based purely on natural language clinical queries.
 
-Unlike traditional classification models that predict from a fixed list of diseases, this application uses a Dual-Encoder Architecture (MedCLIP) and Contrastive Learning to project medical images and clinical text into a shared 512-dimensional vector space. This allows users to search for specific anatomies, modalities, and pathologies (e.g., "Axial CT scan of the chest showing a pleural effusion") and instantly retrieve the highest matching scans.
+Unlike traditional classification models that predict from a fixed list of diseases, this application uses a **Dual-Encoder Architecture (MedCLIP)** and **Contrastive Learning** to project medical images and clinical text into a shared 512-dimensional vector space. This allows users to search for specific anatomies, modalities, and pathologies (e.g., *"Axial CT scan of the chest showing a pleural effusion"*) and instantly retrieve the highest matching scans.
 
-📊 Model Performance
+### 📊 Model Performance
+
 The architecture was evaluated using Top-K Retrieval Accuracy (Recall@K) on a holdout set:
 
-Recall@1: 73.44%
+* **Recall@1:** 73.44%
+* **Recall@5:** >99.00%
+* **Recall@10:** >99.00%
 
-Recall@5: >99.00%
+---
 
-Recall@10: >99.00%
+## 🧠 Architecture & Training Pipeline
 
-🧠 Architecture & Training Pipeline
 This project utilizes two highly parameterized backbones:
 
-Vision Encoder: ResNet (projects radiological image patches)
+* **Vision Encoder:** `ResNet` (projects radiological image patches)
+* **Text Encoder:** `Bio_ClinicalBERT` (projects clinical sentence context via the `[CLS]` token)
 
-Text Encoder: Bio_ClinicalBERT (projects clinical sentence context via the [CLS] token)
-
-The 15+3 Training Strategy:
+**The 15+3 Training Strategy:**
 The model was trained on Kaggle using a two-phase InfoNCE contrastive loss approach:
 
-Phase 1 (Global Alignment): 15 epochs with frozen backbones (Learning Rate: 1e-4) to safely train the linear projection layers.
+1. **Phase 1 (Global Alignment):** 15 epochs with frozen backbones (Learning Rate: 1e-4) to safely train the linear projection layers.
+2. **Phase 2 (Fine-Tuning):** 3 epochs with unfrozen backbones (Learning Rate: 1e-5) to optimize deep internal visual and linguistic parameters, dropping the contrastive loss to a final `0.934`.
 
-Phase 2 (Fine-Tuning): 3 epochs with unfrozen backbones (Learning Rate: 1e-5) to optimize deep internal visual and linguistic parameters, dropping the contrastive loss to a final 0.934.
+🔗 **View the full training loop and hyperparameter configuration here:** [Kaggle Training Notebook](https://www.kaggle.com/code/athulpp06/nitc-internship-roco)
 
-🔗 View the full training loop and hyperparameter configuration here: Kaggle Training Notebook
+---
 
-📂 Dataset Disclaimer
-This model was trained on the ROCO (Radiology Objects in COntext) Radiology Dataset.
-Because the dataset is ~7.1 GB and contains ~81.8K high-resolution files, the dataset is NOT included in this GitHub repository. To run this application locally, you must download the dataset separately and map it to the local directory.
+## 📂 Dataset Disclaimer
 
-🚀 Local Setup & Installation Instructions
-1. Hardware Requirements
+This model was trained on the **ROCO (Radiology Objects in COntext) Radiology Dataset**.
+Because the dataset is **~7.1 GB** and contains ~81.8K high-resolution files, **the dataset is NOT included in this GitHub repository.** To run this application locally, you must download the dataset separately and map it to the local directory.
+
+🔗 **Download Dataset:** [ROCO Radiology Dataset on Kaggle](https://www.kaggle.com/datasets/shareef0612/roco-radiology)
+
+---
+
+## 🚀 Local Setup & Installation Instructions
+
+### 1. Hardware Requirements
+
 For optimal performance during vector database generation and local inference, the following hardware configuration is recommended:
 
-GPU: CUDA-compatible dedicated GPU (e.g., NVIDIA RTX 2000 Ada generation or equivalent)
+* **GPU:** CUDA-compatible dedicated GPU
+* **RAM:** 32GB System RAM recommended for handling large FAISS vector arrays
 
-RAM: 32GB System RAM recommended for handling large FAISS vector arrays
+### 2. Clone the Repository
 
-OS: Ubuntu Linux or Windows 11
-
-2. Clone the Repository
-Bash
+```bash
 git clone https://github.com/athulpp06/MedCLIP-Radiology-Search.git
 cd MedCLIP-Radiology-Search
-3. Install Dependencies
+
+```
+
+### 3. Install Dependencies
+
 Ensure you have a Python virtual environment active, then install the required libraries:
 
-Bash
+```bash
 pip install torch torchvision faiss-cpu pandas numpy pillow streamlit transformers tqdm
-(Note: Use faiss-gpu instead of faiss-cpu if you wish to run the vector database entirely on VRAM).
 
-4. Download the Data & Weights
-Download the ROCO dataset and place the CSV files inside a data/ folder, and the images inside data/test_set/.
+```
 
-Download the trained expert weights (medclip_expert_v2.pth) from the Kaggle notebook outputs and place the file in the root directory of this repository.
+*(Note: Use `faiss-gpu` instead of `faiss-cpu` if you wish to run the vector database entirely on VRAM).*
 
-5. Build the Vector Database
+### 4. Download the Data & Weights
+
+1. Download the [ROCO dataset](https://www.kaggle.com/datasets/shareef0612/roco-radiology).
+2. Download the trained expert weights (`medclip_expert_v2.pth`) from the Kaggle notebook outputs.
+3. Organize the downloaded files to match the expected directory structure below.
+
+### 5. Expected File Structure
+
+Before running the indexing script, ensure your repository looks exactly like this:
+
+```text
+MedCLIP-Radiology-Search/
+├── data/                        # [IGNORED BY GIT] Downloaded dataset goes here
+│   ├── test_data.csv            
+│   ├── val_data.csv             
+│   ├── test_set/                
+│   └── val_set/                 
+├── src/                         # [TRACKED BY GIT] Core architecture module
+│   ├── __init__.py              # Required module initializer
+│   ├── dataset.py               # Custom PyTorch DataLoader pipeline
+│   └── model.py                 # The Dual-Encoder MedCLIP blueprint
+├── app.py                       # The Streamlit web interface and inference pipeline
+├── build_index.py               # Script to generate the FAISS vector database
+├── medclip_expert_v2.pth        # [IGNORED BY GIT] Downloaded expert weights
+├── metadata.csv                 # [IGNORED BY GIT] Auto-generated by build_index.py
+├── vector_index.faiss           # [IGNORED BY GIT] Auto-generated by build_index.py
+├── requirements.txt             # Python dependencies list
+├── .gitignore                   # Git ignore rules
+└── README.md                    # Project documentation
+
+```
+
+### 6. Build the Vector Database
+
 Before launching the app, you must map the medical images into the 512-dimensional vector space. Run the index builder to generate the FAISS index and metadata:
 
-Bash
+```bash
 python build_index.py
-This will generate vector_index.faiss and metadata.csv.
 
-6. Launch the Application
+```
+
+*This will generate `vector_index.faiss` and `metadata.csv` in the root directory.*
+
+### 7. Launch the Application
+
 Start the Streamlit search engine UI:
 
-Bash
+```bash
 streamlit run app.py
-🛠️ Repository Structure
-app.py - The main Streamlit web interface and real-time inference pipeline.
 
-build_index.py - The script responsible for projecting images through the Vision model and saving the FAISS vector database.
-
-src/model.py - The PyTorch blueprint defining the Dual-Encoder MedCLIP architecture.
-
-README.md - Project documentation.
+```
