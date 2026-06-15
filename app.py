@@ -21,7 +21,8 @@ def load_search_engine():
     
     # Initialize Architecture and Weights
     model = MedCLIPModel(emb_dim=512)
-    model.load_state_dict(torch.load("medclip_v1_weights.pth", map_location=device, weights_only=True))
+    # --- Updated to Expert Weights ---
+    model.load_state_dict(torch.load("medclip_expert_v2.pth", map_location=device, weights_only=True))
     model.to(device)
     model.eval()
     
@@ -54,14 +55,12 @@ if query:
                 return_tensors="pt"
             ).to(device)
             
-            # Push tokens through the Text Model (This matches our src/model.py fix!)
+            # Push tokens through the Text Model
             text_outputs = model.text_model(input_ids=tokens['input_ids'], attention_mask=tokens['attention_mask'])
             
-            # Extract the raw features
-            if hasattr(text_outputs, 'pooler_output'):
-                text_features = text_outputs.pooler_output
-            else:
-                text_features = text_outputs.last_hidden_state[:, 0, :]
+            # --- THE BUG FIX: Bypassing the untrained pooler ---
+            # We strictly use the [CLS] token that was optimized during the Kaggle run.
+            text_features = text_outputs.last_hidden_state[:, 0, :]
             
             # Project to the shared 512-dimensional space and normalize
             text_embeddings = model.text_projection(text_features)

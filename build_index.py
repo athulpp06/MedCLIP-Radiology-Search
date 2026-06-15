@@ -126,7 +126,7 @@ if __name__ == "__main__":
     build_vector_database(
         csv_path="data/test_data.csv",
         img_dir="data/test_set",
-        weights_path="medclip_v1_weights.pth",
+        weights_path="medclip_expert_v2.pth", # <--- Updated to Expert Weights
         index_output="vector_index.faiss",
         meta_output="metadata.csv"
     )

@@ -1,14 +1,14 @@
-# Virtual environment
+# Python Environment & Caches
 venv/
-.venv/
-
-# Python caching
 __pycache__/
 *.pyc
 
-# Heavy ML Artifacts (DO NOT PUSH TO GITHUB)
+# Massive Model Weights
 *.pth
-*.bin
 
-# Local Dataset storage
+# Locally Generated Database Files
+vector_index.faiss
+metadata.csv
+
+# Downloaded Datasets (To prevent uploading 7GB of files)
 data/
