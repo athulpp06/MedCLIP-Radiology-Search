@@ -29,6 +29,9 @@ The model was trained on Kaggle using a two-phase InfoNCE contrastive loss appro
 
 🔗 **View the full training loop and hyperparameter configuration here:** [Kaggle Training Notebook](https://www.kaggle.com/code/athulpp06/nitc-internship-roco)
 
+🧑🏻‍💻**Download the trained model here:**
+[Pre Trained Model](https://drive.google.com/file/d/1MgCW949iQrUoLU0S9odhq__wBmxo5v2r/view?usp=drive_link)
+
 ---
 
 ## 📂 Dataset Disclaimer
