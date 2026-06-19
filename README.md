@@ -120,6 +120,6 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 ```
 
-## Dataset Citation
+## Author
 
-ROCO: Radiology Objects in Context — Pelka et al., 2018, CVII-STENT/LABELS Workshop, MICCAI 2018.
+Athul P P
