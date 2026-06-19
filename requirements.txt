@@ -5,8 +5,10 @@ torchvision
 torchaudio
 transformers==4.45.2
 pandas
+numpy
 pillow
 streamlit
 faiss-cpu
 tqdm
 safetensors
+matplotlib
