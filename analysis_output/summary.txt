@@ -1,0 +1,18 @@
+MedCLIP Evaluation Summary
+========================================
+Total epochs trained: 15
+Final train accuracy: 70.16%
+Final val accuracy:   51.61%
+
+Retrieval benchmark (1000 validation pairs):
+Recall@1:  12.30%
+Recall@5:  32.90%
+Recall@10: 50.40%
+MRR:       0.2400
+Median rank: 10 / 1000
+
+Chance baseline (1000 candidates):
+Recall@1:  0.10%
+Recall@5:  0.50%
+Recall@10: 1.00%
+MRR:       0.0075
